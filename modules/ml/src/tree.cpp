@@ -1477,14 +1477,24 @@ float DTreesImpl::predictTrees( const Range& range, const Mat& sample, int flags
     if( predictType == PREDICT_MAX_VOTE )
     {
         int best_idx = lastClassIdx;
+        float certainty_rcf = 0.0f;
         if( range.end - range.start > 1 )
         {
             best_idx = 0;
+            
+            float totTrees_rcf = (float)(range.end - range.start);
+            float thresHold_rcf = totTrees_rcf/nclasses;
+            certainty_rcf = MIN(0.99f, MAX(.01f, (votes[best_idx] - thresHold_rcf)/(totTrees_rcf - thresHold_rcf)));
+            
             for( i = 1; i < nclasses; i++ )
-                if( votes[best_idx] < votes[i] )
-                    best_idx = i;
+            if( votes[best_idx] < votes[i] ){
+                best_idx = i;
+                //This will return on top of the class the probability
+                certainty_rcf = MIN(0.99f, MAX(.01f, (votes[i] - thresHold_rcf)/(totTrees_rcf - thresHold_rcf)));
+            }
         }
-        sum = (flags & RAW_OUTPUT) ? (float)best_idx : classLabels[best_idx];
+        sum = (flags & RAW_OUTPUT) ? (float)best_idx : classLabels[best_idx] + certainty_rcf;
+        //printf(" %f %f .", sum, result_rcf);
     }
 
     return (float)sum;
